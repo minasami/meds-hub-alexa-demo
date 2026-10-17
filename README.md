@@ -126,7 +126,8 @@ Invalid requests also consume quota. Counters expire after a minute; missing or
 malformed addresses share an `unknown` bucket, and active counters are never
 silently evicted to make room for new IPs.
 
-On Vercel the function uses the ingress-overwritten `x-forwarded-for` header only
+On Vercel the function prefers `x-real-ip`, otherwise the trimmed first hop of
+`x-forwarded-for`, only
 when `VERCEL=1` ([header contract](https://vercel.com/docs/headers/request-headers)).
 The standalone/Vite middleware uses the socket peer IP, ignoring forwarded headers.
 Do not set `VERCEL=1` on an untrusted direct deployment. These quotas are best-effort

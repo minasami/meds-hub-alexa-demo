@@ -43,7 +43,17 @@ describe("bounded per-IP rate limiting", () => {
     expect(vercelClientIp(request("192.0.2.1"))).toBe("unknown");
     vi.stubEnv("VERCEL", "1");
     expect(vercelClientIp(request("192.0.2.1"))).toBe("192.0.2.1");
-    expect(vercelClientIp(request("192.0.2.1, spoofed"))).toBe("unknown");
+    expect(vercelClientIp(request(" 192.0.2.1 , 198.51.100.2"))).toBe("192.0.2.1");
+    const preferred = request("192.0.2.1, 198.51.100.2");
+    preferred.headers.set("x-real-ip", " 203.0.113.7 ");
+    expect(vercelClientIp(preferred)).toBe("203.0.113.7");
+    preferred.headers.set("x-real-ip", " ");
+    expect(vercelClientIp(preferred)).toBe("192.0.2.1");
+    preferred.headers.set("x-real-ip", "invalid");
+    expect(vercelClientIp(preferred)).toBe("unknown");
+    vi.stubEnv("VERCEL", "0");
+    preferred.headers.set("x-real-ip", "203.0.113.7");
+    expect(vercelClientIp(preferred)).toBe("unknown");
   });
   it("enforces /api/tool before fetching upstream and returns 429 + Retry-After", async () => {
     vi.stubEnv("VERCEL", "1");

@@ -11,7 +11,10 @@ export function normalizeIp(value: string | null | undefined): string {
 // Trust this header only inside Vercel, whose ingress overwrites it.
 // Self-hosted middleware uses socket.remoteAddress instead of client-supplied headers.
 export function vercelClientIp(request: Request): string {
-  return normalizeIp(process.env.VERCEL === "1" ? request.headers.get("x-forwarded-for") : null);
+  if (process.env.VERCEL !== "1") return normalizeIp(null);
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  const firstHop = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return normalizeIp(realIp || firstHop);
 }
 
 export function createIpRateLimiter({ windowMs = 60_000, toolLimit = 30, initializeLimit = 6, maxEntries = 10_000, now = Date.now } = {}) {
