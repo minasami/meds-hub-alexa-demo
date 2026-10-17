@@ -109,7 +109,8 @@ missing-price handling, and same-INN strength/form flags. `npm run test:live` ma
 
 ## Screenshots
 
-`screenshots/` holds headless-Chrome captures of the flow taken on 17 Oct 2026 against the live server.
+`screenshots/` holds headless-Chrome captures of the flow, taken on 17 Oct 2026 against the public Vercel deployment
+and the live MCP server (v0.4.0, negotiated protocol `2025-11-25`).
 Prices in them are catalog values at that moment and will change.
 
 ## License
