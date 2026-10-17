@@ -116,3 +116,31 @@ Prices in them are catalog values at that moment and will change.
 ## License
 
 MIT, see [LICENSE](LICENSE). The license covers this demo's code only, not the MedS Hub catalog data.
+
+### Proxy abuse limits and diagnostics
+
+Both Vercel endpoints check a bounded, in-memory per-IP quota before calling MCP:
+`/api/tool` allows 30 requests/minute; `/api/initialize` allows 6/minute. Excess
+requests return HTTP 429, `Retry-After` seconds and `Cache-Control: no-store`.
+Invalid requests also consume quota. Counters expire after a minute; missing or
+malformed addresses share an `unknown` bucket, and active counters are never
+silently evicted to make room for new IPs.
+
+On Vercel the function uses the ingress-overwritten `x-forwarded-for` header only
+when `VERCEL=1` ([header contract](https://vercel.com/docs/headers/request-headers)).
+The standalone/Vite middleware uses the socket peer IP, ignoring forwarded headers.
+Do not set `VERCEL=1` on an untrusted direct deployment. These quotas are best-effort
+per warm process/function instance: cold starts, regions and separately bundled
+functions do not share state. They are not a distributed billing/quota guarantee.
+
+Non-2xx MCP HTTP responses are failures even if their JSON-RPC body contains a
+matching result. The existing one-time session-404 retry remains. Failed initialize
+notifications discard the session. Public error summaries and transport exception
+messages are generic; request and parsed response bodies remain visible in the demo
+trace by design (including upstream JSON-RPC error bodies). Do not point this public
+demo at an upstream service that returns secrets or private data in those bodies.
+
+Verification: `npm test` runs mocked/offline regression tests for both endpoints,
+IP isolation/reset, HTTP failure handling and diagnostic redaction. `npm run build`
+type-checks the browser, API and server code and builds the demo. The opt-in live MCP
+test is not required and is skipped unless `LIVE_MCP` is set.

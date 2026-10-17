@@ -85,7 +85,7 @@ export function parseSse(body: string): JsonRpcMessage[] {
 export function interpretToolResult(msg: JsonRpcMessage | null | undefined): ToolCallOutcome {
   if (!msg) return { ok: false, data: null, isError: true, errorMessage: "No response from MCP server" };
   if (msg.error) {
-    return { ok: false, data: null, isError: true, errorMessage: `JSON-RPC error ${msg.error.code}: ${msg.error.message}` };
+    return { ok: false, data: null, isError: true, errorMessage: `JSON-RPC error ${msg.error.code}` };
   }
   const result = msg.result;
   if (!result || typeof result !== "object") {
@@ -103,8 +103,7 @@ export function interpretToolResult(msg: JsonRpcMessage | null | undefined): Too
     }
   }
   if (result.isError) {
-    const message = (data && (data.error || data.message || data.text)) || "Tool reported an error";
-    return { ok: false, data, isError: true, errorMessage: String(message) };
+    return { ok: false, data, isError: true, errorMessage: "MCP tool reported an error" };
   }
   return { ok: true, data, isError: false };
 }
@@ -170,13 +169,17 @@ export class McpClient {
       entry.httpStatus = res.status;
       entry.contentType = res.headers.get("content-type");
       const body = await res.text();
-      const messages = message.id === undefined ? [] : parseMcpResponseBody(body, entry.contentType);
+      let messages: JsonRpcMessage[] = [];
+      if (message.id !== undefined) {
+        try { messages = parseMcpResponseBody(body, entry.contentType); }
+        catch { if (res.ok) throw new Error("Malformed MCP response"); }
+      }
       const match = messages.find((m) => m.id === message.id) || null;
       entry.response = match;
-      if (!res.ok && !match) entry.error = `HTTP ${res.status}`;
+      if (!res.ok) entry.error = `HTTP ${res.status}`;
       return { res, match };
     } catch (err: any) {
-      entry.error = err?.name === "AbortError" ? `Timed out after ${this.timeoutMs} ms` : String(err?.message || err);
+      entry.error = err?.name === "AbortError" ? `Timed out after ${this.timeoutMs} ms` : "MCP transport or response failure";
       throw new Error(entry.error);
     } finally {
       clearTimeout(timer);
@@ -205,8 +208,8 @@ export class McpClient {
       },
       trace,
     );
-    if (!match || match.error || !match.result) {
-      throw new Error(match?.error ? `initialize failed: ${match.error.message}` : `initialize failed (HTTP ${res.status})`);
+    if (!res.ok || !match || match.error || !match.result) {
+      throw new Error(`MCP initialize failed (HTTP ${res.status})`);
     }
     this.session = {
       protocolVersion: match.result.protocolVersion ?? null,
@@ -215,7 +218,10 @@ export class McpClient {
     };
     this.sessionStartedAt = Date.now();
     // Required follow-up notification (no id, no response expected; server answers 202).
-    await this.post({ jsonrpc: "2.0", method: "notifications/initialized" }, trace);
+    try {
+      const notification = await this.post({ jsonrpc: "2.0", method: "notifications/initialized" }, trace);
+      if (!notification.res.ok) throw new Error(`MCP initialization notification failed (HTTP ${notification.res.status})`);
+    } catch (error) { this.session = null; throw error; }
     return this.session;
   }
 
@@ -234,6 +240,7 @@ export class McpClient {
       await this.initialize(trace);
       ({ res, match } = await send());
     }
+    if (!res.ok) return { ok: false, data: null, isError: true, errorMessage: `MCP server returned HTTP ${res.status}` };
     if (!match) {
       return { ok: false, data: null, isError: true, errorMessage: `MCP server returned HTTP ${res.status} with no matching JSON-RPC response` };
     }

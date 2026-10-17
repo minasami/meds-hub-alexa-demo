@@ -29,8 +29,8 @@ describe("tool result interpretation", () => {
     expect(r.data).toEqual({ count: 2 });
   });
   it("reports isError and JSON-RPC errors", () => {
-    expect(interpretToolResult({ jsonrpc: "2.0", id: 1, result: { isError: true, content: [{ type: "text", text: "boom" }] } })).toMatchObject({ ok: false, isError: true, errorMessage: "boom" });
-    expect(interpretToolResult({ jsonrpc: "2.0", id: 1, error: { code: -32602, message: "bad params" } })).toMatchObject({ ok: false, errorMessage: "JSON-RPC error -32602: bad params" });
+    expect(interpretToolResult({ jsonrpc: "2.0", id: 1, result: { isError: true, content: [{ type: "text", text: "boom" }] } })).toMatchObject({ ok: false, isError: true, errorMessage: "MCP tool reported an error" });
+    expect(interpretToolResult({ jsonrpc: "2.0", id: 1, error: { code: -32602, message: "bad params" } })).toMatchObject({ ok: false, errorMessage: "JSON-RPC error -32602" });
     expect(interpretToolResult(null).ok).toBe(false);
   });
 });
@@ -109,7 +109,7 @@ describe("McpClient handshake", () => {
       throw new Error("ECONNREFUSED");
     });
     const trace: TraceEntry[] = [];
-    await expect(client.callTool("get_disclaimer", {}, trace)).rejects.toThrow("ECONNREFUSED");
-    expect(trace[0].error).toBe("ECONNREFUSED");
+    await expect(client.callTool("get_disclaimer", {}, trace)).rejects.toThrow("MCP transport or response failure");
+    expect(trace[0].error).toBe("MCP transport or response failure");
   });
 });
