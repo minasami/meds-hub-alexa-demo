@@ -1,0 +1,26 @@
+{
+  "name": "meds-hub-simulated-alexa-demo",
+  "version": "0.1.0",
+  "description": "Simulated Alexa+ web experience for MedS Hub: live read-only calls to the MedS Hub MCP server. Not an Amazon product.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.server.json && vite build",
+    "start": "node dist-server/server/prod.js",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:live": "LIVE_MCP=1 vitest run tests/live.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}

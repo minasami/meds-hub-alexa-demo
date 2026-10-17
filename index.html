@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>MedS Hub · Simulated Alexa+ experience</title>
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <div>
+          <h1>MedS Hub assistant</h1>
+          <p class="sub">Egyptian medicine catalog lookup · live MCP tool calls</p>
+        </div>
+      </div>
+      <div class="sim-label" role="note">Simulated Alexa+ experience, not an Amazon product</div>
+    </header>
+
+    <main class="layout">
+      <section class="device" aria-label="Conversation">
+        <div class="ring-wrap"><div id="ring" class="ring" aria-hidden="true"></div></div>
+        <div id="chat" class="chat" aria-live="polite"></div>
+        <div id="chips" class="chips"></div>
+        <form id="composer" class="composer" autocomplete="off">
+          <button id="mic" type="button" class="mic" aria-label="Speak (optional)">🎤</button>
+          <input id="input" type="text" placeholder='Type or speak, e.g. "Alexa, look up Controloc"' aria-label="Message" />
+          <button type="submit" class="send">Send</button>
+        </form>
+        <label class="speak-toggle"><input id="speak" type="checkbox" /> Read replies aloud (browser speech synthesis)</label>
+      </section>
+
+      <aside class="trace" aria-label="Tool trace">
+        <details open>
+          <summary><strong>Tool trace</strong>: real JSON-RPC calls to the MedS Hub MCP server</summary>
+          <div id="trace-meta" class="trace-meta">No calls yet.</div>
+          <div class="trace-scroll"><ol id="trace-list" class="trace-list"></ol></div>
+        </details>
+      </aside>
+    </main>
+
+    <footer class="disclaimer" role="note">
+      <strong>Information only.</strong> Not medical advice, not a prescription, and not a pharmacy quote. Prices are indicative
+      MedS Hub catalog estimates in EGP and may differ at the pharmacy; the catalog does not confirm stock. Same active ingredient does
+      not mean interchangeable: talk to your doctor or pharmacist before changing any medicine. This demo is read-only: no sign-in, no
+      prescriptions, no saved data. MedS Hub catalog is not an official national registry. Alexa is a trademark of Amazon; this page is a
+      simulation and is not made, endorsed or certified by Amazon.
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
