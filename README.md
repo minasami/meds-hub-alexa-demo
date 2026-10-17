@@ -33,6 +33,10 @@ npm test                       # unit tests (offline)
 npm run test:live              # optional: one read-only call to the live MCP server
 ```
 
+Deploying to Vercel: `vercel.json` builds the static app (`npm run build` → `dist/`) and `api/tool.ts` /
+`api/initialize.ts` run as Vercel Functions that reuse `server/api.ts` (same allowlist, same 403s). No environment
+variables are required.
+
 Optional environment variable: `MCP_URL` (defaults to `https://mcp.medicinesupport.app/mcp`).
 
 Voice: speech input uses `SpeechRecognition` / `webkitSpeechRecognition` (Chrome and Edge; needs microphone
@@ -49,7 +53,7 @@ Browser (Vite + TypeScript, no framework)
   src/speech.ts    optional Web Speech API input/output
         │  POST /api/tool {name, arguments}     POST /api/initialize
         ▼
-Server-side proxy (Node; Vite dev/preview middleware, or server/prod.ts for `npm start`)
+Server-side proxy (Node; Vite dev/preview middleware, server/prod.ts for `npm start`, or api/*.ts on Vercel)
   server/tools.ts      read-only allowlist + argument validation
   server/api.ts        HTTP handler, returns {data, trace, negotiatedProtocolVersion}
   server/mcpClient.ts  minimal MCP Streamable HTTP client (JSON + SSE parsing,
@@ -70,8 +74,8 @@ Allowed tools: `search_medicines`, `get_medicine`, `estimate_cost`, `compare_inn
 Everything else is rejected with HTTP 403 before any request leaves the proxy.
 
 Protocol version: the client asks for `2025-11-25` in `initialize` and then uses whatever version the server
-negotiates. On 17 Oct 2026 the live server (v0.3.3) answered `2025-03-26`; the trace panel shows the live value.
-Do not claim 2025-11-25 compliance for the server until the server is upgraded and re-checked.
+negotiates. Since 17 Oct 2026 the live server (v0.4.0) negotiates `2025-11-25`. Before that, v0.3.3 answered
+`2025-03-26`. The trace panel always shows the live value.
 
 Honesty rules built into the flow:
 - A price is shown only when `estimate_cost` returns a positive `unit_egp` for the **same** catalog id the user
