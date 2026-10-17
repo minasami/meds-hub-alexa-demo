@@ -184,7 +184,16 @@ export class McpClient {
     }
   }
 
-  async initialize(trace: TraceEntry[]): Promise<McpSessionInfo> {
+  /** Start a fresh session. Concurrent tool calls wait for an in-flight initialize instead of starting another. */
+  initialize(trace: TraceEntry[]): Promise<McpSessionInfo> {
+    const p = this.doInitialize(trace).finally(() => {
+      if (this.initPromise === p) this.initPromise = null;
+    });
+    this.initPromise = p;
+    return p;
+  }
+
+  private async doInitialize(trace: TraceEntry[]): Promise<McpSessionInfo> {
     this.session = null;
     const id = this.nextId++;
     const { res, match } = await this.post(
@@ -215,11 +224,8 @@ export class McpClient {
   }
 
   async callTool(name: string, args: Record<string, unknown>, trace: TraceEntry[]): Promise<ToolCallOutcome> {
-    if (this.sessionExpired()) {
-      // Share one in-flight initialize between concurrent callers.
-      this.initPromise ??= this.initialize(trace).finally(() => (this.initPromise = null));
-      await this.initPromise;
-    }
+    if (this.initPromise) await this.initPromise;
+    else if (this.sessionExpired()) await this.initialize(trace);
     const send = () =>
       this.post({ jsonrpc: "2.0", id: this.nextId++, method: "tools/call", params: { name, arguments: args } }, trace, name);
     let { res, match } = await send();

@@ -87,6 +87,23 @@ describe("McpClient handshake", () => {
     expect(inits).toBe(2);
   });
 
+  it("does not start a second initialize while one is in flight", async () => {
+    let inits = 0;
+    const fakeFetch = async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      if (body.method === "initialize") {
+        inits++;
+        await new Promise((r) => setTimeout(r, 20));
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result: { protocolVersion: "2025-03-26" } }), { headers: { "content-type": "application/json" } });
+      }
+      if (!body.id) return new Response(null, { status: 202 });
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result: { structuredContent: {} } }), { headers: { "content-type": "application/json" } });
+    };
+    const client = new McpClient("https://example.test/mcp", fakeFetch);
+    await Promise.all([client.initialize([]), client.callTool("get_disclaimer", {}, []), client.callTool("get_disclaimer", {}, [])]);
+    expect(inits).toBe(1);
+  });
+
   it("surfaces network failures in the trace", async () => {
     const client = new McpClient("https://example.test/mcp", async () => {
       throw new Error("ECONNREFUSED");
