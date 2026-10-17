@@ -1,3 +1,4 @@
+import { createIpRateLimiter, normalizeIp } from "./rateLimit.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpClient, DEFAULT_MCP_URL, REQUESTED_PROTOCOL_VERSION, type TraceEntry } from "./mcpClient.js";
 import { isAllowedTool, validateArgs, ALLOWED_TOOLS } from "./tools.js";
@@ -26,7 +27,7 @@ export function createToolHandler(client = new McpClient(process.env.MCP_URL || 
     try {
       const outcome = await client.callTool(name, v.args, trace);
       return {
-        status: 200,
+        status: outcome.ok ? 200 : 502,
         json: {
           ...outcome,
           tool: name,
@@ -44,7 +45,7 @@ export function createToolHandler(client = new McpClient(process.env.MCP_URL || 
           tool: name,
           data: null,
           isError: true,
-          errorMessage: `Could not reach the MCP server: ${err?.message || err}`,
+          errorMessage: "MCP request failed. Please try again later.",
           requestedProtocolVersion: REQUESTED_PROTOCOL_VERSION,
           negotiatedProtocolVersion: client.info?.protocolVersion ?? null,
           serverInfo: client.info?.serverInfo ?? null,
@@ -79,7 +80,7 @@ export function createInitializeHandler(client: McpClient) {
       const info = await client.initialize(trace);
       return { status: 200, json: { ok: true, tool: "initialize", data: info && { protocolVersion: info.protocolVersion, serverInfo: info.serverInfo }, isError: false, requestedProtocolVersion: REQUESTED_PROTOCOL_VERSION, negotiatedProtocolVersion: info.protocolVersion, serverInfo: info.serverInfo, trace } };
     } catch (err: any) {
-      return { status: 502, json: { ok: false, tool: "initialize", data: null, isError: true, errorMessage: String(err?.message || err), requestedProtocolVersion: REQUESTED_PROTOCOL_VERSION, negotiatedProtocolVersion: null, serverInfo: null, trace } };
+      return { status: 502, json: { ok: false, tool: "initialize", data: null, isError: true, errorMessage: "MCP initialization failed. Please try again later.", requestedProtocolVersion: REQUESTED_PROTOCOL_VERSION, negotiatedProtocolVersion: null, serverInfo: null, trace } };
     }
   };
 }
@@ -89,6 +90,7 @@ export function createApiMiddleware() {
   const client = new McpClient(process.env.MCP_URL || DEFAULT_MCP_URL);
   const handleTool = createToolHandler(client);
   const handleInit = createInitializeHandler(client);
+  const consume = createIpRateLimiter();
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = (req.url || "").split("?")[0];
     if (url !== "/api/tool" && url !== "/api/initialize") return next();
@@ -99,6 +101,11 @@ export function createApiMiddleware() {
       res.end(JSON.stringify(json));
     };
     if (req.method !== "POST") return send(405, { ok: false, error: "POST only" });
+    const quota = consume(normalizeIp(req.socket.remoteAddress), url === "/api/initialize" ? "initialize" : "tool");
+    if (!quota.allowed) {
+      res.setHeader("retry-after", String(quota.retryAfter));
+      return send(429, { ok: false, error: "Too many requests. Try again later." });
+    }
     if (url === "/api/initialize") {
       const out = await handleInit();
       return send(out.status, out.json);

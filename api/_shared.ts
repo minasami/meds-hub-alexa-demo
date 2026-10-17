@@ -15,3 +15,14 @@ export function json(status: number, body: unknown): Response {
 }
 
 export const postOnly = () => json(405, { ok: false, error: "POST only" });
+
+// Per warm instance; not a distributed quota across regions/cold starts.
+import { createIpRateLimiter, vercelClientIp, type ProxyRoute } from "../server/rateLimit.js";
+const consume = createIpRateLimiter();
+export function rateLimit(request: Request, route: ProxyRoute): Response | null {
+  const result = consume(vercelClientIp(request), route);
+  if (result.allowed) return null;
+  const response = json(429, { ok: false, error: "Too many requests. Try again later." });
+  response.headers.set("retry-after", String(result.retryAfter));
+  return response;
+}
